@@ -20,6 +20,8 @@
   - https://www.altaro.com/hyper-v/powershell-script-change-advanced-settings-hyper-v-virtual-machines/
 
   Recommended: choco install putty -y
+
+  Enable verbose mode by executing '$VerbosePreference = "Continue"' reset by setting back to "SilentlyContinue"
 #>
 
 #requires -Modules Hyper-V
@@ -36,6 +38,9 @@ param(
   [uint64] $VMMaximumBytes = $VMMemoryStartupBytes,
   [uint64] $VHDSizeBytes = 40GB,
   [string] $VirtualSwitchName = $null,
+  [string] $VirtualSwitchName2 = $null,
+  [string] $VirtualSwitchName3 = $null,
+  [string] $VirtualSwitchName4 = $null,
   [string] $VMVlanID = $null,
   [string] $VMNativeVlanID = $null,
   [string] $VMAllowedVlanIDList = $null,
@@ -58,7 +63,13 @@ param(
   [string] $DomainName = "domain.local",
   [string] $VMStaticMacAddress = $null,
   [string] $NetInterface = "eth0",
+  [string] $NetInterface2 = $null,
+  [string] $NetInterface3 = $null,
+  [string] $NetInterface4 = $null,
   [string] $NetAddress = $null,
+  [string] $NetAddress2 = $null,
+  [string] $NetAddress3 = $null,
+  [string] $NetAddress4 = $null,
   [string] $NetNetmask = $null,
   [string] $NetNetwork = $null,
   [string] $NetGateway = $null,
@@ -77,7 +88,7 @@ param(
   [string] $GuestAdminSshPubKeyFile,
   [string] $ImageVersion = "22.04", # $ImageName ="focal" # 20.04 LTS , $ImageName="bionic" # 18.04 LTS
   [string] $ImageRelease = "release", # default option is get latest but could be fixed to some specific version for example "release-20210413"
-  [string] $ImageBaseUrl = "http://cloud-images.ubuntu.com/releases", # alternative https://mirror.scaleuptech.com/ubuntu-cloud-images/releases
+  [string] $ImageBaseUrl = "https://cloud-images.ubuntu.com/releases", # alternative https://mirror.scaleuptech.com/ubuntu-cloud-images/releases
   [bool] $BaseImageCheckForUpdate = $true, # check for newer image at Distro cloud-images site
   [bool] $BaseImageCleanup = $true, # delete old vhd image. Set to false if using (TODO) differencing VHD
   [switch] $ShowSerialConsoleWindow = $false,
@@ -88,6 +99,9 @@ param(
 [System.Threading.Thread]::CurrentThread.CurrentUICulture = "en-US"
 [System.Threading.Thread]::CurrentThread.CurrentCulture = "en-US"
 
+# check if verbose is present, src: https://stackoverflow.com/a/25491281/1155121
+$verbose = $VerbosePreference -ne 'SilentlyContinue'
+
 $NetAutoconfig = (($null -eq $NetAddress) -or ($NetAddress -eq "")) -and
                  (($null -eq $NetNetmask) -or ($NetNetmask -eq "")) -and
                  (($null -eq $NetNetwork) -or ($NetNetwork -eq "")) -and
@@ -96,13 +110,25 @@ $NetAutoconfig = (($null -eq $NetAddress) -or ($NetAddress -eq "")) -and
 
 if ($NetAutoconfig -eq $false) {
   Write-Verbose "Given Network configuration - no checks done in script:"
-  Write-Verbose "VMStaticMacAddress: '$VMStaticMacAddress'"
   Write-Verbose "NetInterface:     '$NetInterface'"
+  Write-Verbose "VirtualSwitchName: '$VirtualSwitchName'"
+  Write-Verbose "VMStaticMacAddress: '$VMStaticMacAddress'"
   Write-Verbose "NetAddress:       '$NetAddress'"
   Write-Verbose "NetNetmask:       '$NetNetmask'"
   Write-Verbose "NetNetwork:       '$NetNetwork'"
   Write-Verbose "NetGateway:       '$NetGateway'"
   Write-Verbose ""
+  Write-Verbose "NetInterface2:     '$NetInterface2'"
+  Write-Verbose "VirtualSwitchName2: '$VirtualSwitchName2'"
+  Write-Verbose "NetAddress2:       '$NetAddress2'"
+  Write-Verbose ""
+  Write-Verbose "NetInterface3:     '$NetInterface3'"
+  Write-Verbose "VirtualSwitchName3: '$VirtualSwitchName3'"
+  Write-Verbose "NetAddress3:       '$NetAddress3'"
+  Write-Verbose ""
+  Write-Verbose "NetInterface4:     '$NetInterface4'"
+  Write-Verbose "VirtualSwitchName4: '$VirtualSwitchName4'"
+  Write-Verbose "NetAddress4:       '$NetAddress4'"
 }
 
 # default error action
@@ -129,9 +155,6 @@ if ($PSVersionTable.PSVersion.Major -ge 7) {
   # slow in Windows Powershell
   $ProgressPreference = "SilentlyContinue"
 }
-
-# check if verbose is present, src: https://stackoverflow.com/a/25491281/1155121
-$verbose = $VerbosePreference -ne 'SilentlyContinue'
 
 $ImageSupportsSecureBoot = $true
 # check if running hyper-v host version 8.0 or later
@@ -447,6 +470,7 @@ config:
     $networkconfig = @"
 version: 2
 ethernets:
+  # primary interface definition
   $($NetInterface):
     dhcp4: $NetAutoconfig
     dhcp6: $NetAutoconfig
@@ -459,6 +483,30 @@ ethernets:
     nameservers:
       addresses: ['$($NameServers.Split(",") -join "', '" )']
       search: ['$($DomainName)']
+  $(if (($null -eq $NetInterface2) -or ($NetInterface2 -eq "")) {
+  "# skipping 2nd interface definition"
+  } else {
+  "# 2nd interface definition
+  ${NetInterface2}:
+    addresses:
+      - $NetAddress2"
+  })
+  $(if (($null -eq $NetInterface3) -or ($NetInterface3 -eq "")) {
+  "# skipping 3rd interface definition"
+  } else {
+  "# 3rd interface definition
+  ${NetInterface3}:
+    addresses:
+      - $NetAddress3"
+  })
+  $(if (($null -eq $NetInterface4) -or ($NetInterface4 -eq "")) {
+  "# skipping 4th interface definition"
+  } else {
+  "# 4th interface definition
+  ${NetInterface4}:
+    addresses:
+      - $NetAddress4"
+  })
 "@
   } elseif ($NetConfigType -ieq "ENI") {
     Write-Verbose "ENI requested ..."
@@ -1131,6 +1179,45 @@ If ((($null -ne $VMVlanID) -and ([int]($VMVlanID) -ne 0)) -or
   }
 } else {
   Write-Verbose "Let virtual network adapter '$VMNetworkAdapterName' untagged."
+}
+
+# configure 2nd network Adapter if needed
+if (($null -eq $NetInterface2) -or ($NetInterface2 -eq "")) {
+  Write-Host "No 2nd network adapter requested."
+} else {
+  Write-Host "Adding 2nd network adapter '$NetInterface2'... " -NoNewline
+  if (($null -eq $VirtualSwitchName2) -or ($VirtualSwitchName2 -eq "")) {
+    Add-VMNetworkAdapter -VMName $VMName -Name "Network Adapter $NetInterface2"
+  } else {
+    Add-VMNetworkAdapter -VMName $VMName -SwitchName $VirtualSwitchName2 -Name "Network Adapter $NetInterface2"
+  }
+  Write-Host -ForegroundColor Green " Done."
+}
+
+# configure 3rd network Adapter if needed
+if (($null -eq $NetInterface3) -or ($NetInterface3 -eq "")) {
+  Write-Host "No 3rd network adapter requested."
+} else {
+  Write-Host "Adding 3rd network adapter '$NetInterface3'... " -NoNewline
+  if (($null -eq $VirtualSwitchName3) -or ($VirtualSwitchName3 -eq "")) {
+    Add-VMNetworkAdapter -VMName $VMName -Name "Network Adapter $NetInterface3"
+  } else {
+    Add-VMNetworkAdapter -VMName $VMName -SwitchName $VirtualSwitchName3 -Name "Network Adapter $NetInterface3"
+  }
+  Write-Host -ForegroundColor Green " Done."
+}
+
+# configure 4th network Adapter if needed
+if (($null -eq $NetInterface4) -or ($NetInterface4 -eq "")) {
+  Write-Host "No 4th network adapter requested."
+} else {
+  Write-Host "Adding 4th network adapter '$NetInterface4'... " -NoNewline
+  if (($null -eq $VirtualSwitchName4) -or ($VirtualSwitchName4 -eq "")) {
+    Add-VMNetworkAdapter -VMName $VMName -Name "Network Adapter $NetInterface4"
+  } else {
+    Add-VMNetworkAdapter -VMName $VMName -SwitchName $VirtualSwitchName4 -Name "Network Adapter $NetInterface4"
+  }
+  Write-Host -ForegroundColor Green " Done."
 }
 
 if ($VMVMQ) {
