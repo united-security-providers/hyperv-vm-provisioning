@@ -4,29 +4,19 @@ $exportVM = Get-VM | Out-GridView -Title "Select VM" -OutputMode Single |
 
 try{
  $exportVM = $exportVM.VMName.ToString()
- Export-VM -VMName $exportVM -Path $env:USERPROFILE -ErrorAction Stop
+ Export-VM -VMName $exportVM -Path C:\ProgramData\Microsoft\Windows\Hyper-V\export -ErrorAction Stop
     }
 catch{
- Write-Output "No VM selected or export directory does not exist."
+ Write-Output "No VM selected or export directory exists already."
  Exit 1
  }
 
 # path to .vcmx of exported VM
-$vmcx = Get-ChildItem (Join-Path $env:USERPROFILE "$exportVM\Virtual Machines\*.vmcx") |
+$vmcx = Get-ChildItem (Join-Path C:\ProgramData\Microsoft\Windows\Hyper-V\export\ "$exportVM\Virtual Machines\*.vmcx") |
 select FullName
 
-Add-Type -AssemblyName System.Windows.Forms
-$FolderDialog = New-Object System.Windows.Forms.FolderBrowserDialog
-$FolderDialog.RootFolder = [System.Environment+SpecialFolder]::MyComputer
-$FolderDialog.Description = "Target directory for cloned VM"
-$Result = $FolderDialog.ShowDialog()
 
-if($FolderDialog.SelectedPath -eq ""){
- Write-Output "No path selected."
- exit -1
- }
-
-$DestDir = $FolderDialog.SelectedPath
+$DestDir = "C:\ProgramData\Microsoft\Windows\Hyper-V"
 
 # import VM and renaming
 do{
@@ -51,5 +41,5 @@ while((Read-Host -Prompt "Create another clone? (y/n)") -eq "y")
 
 # Exportierte VM löschen
 if((Read-Host -Prompt "Remove exported VM? (y/n)") -eq "y"){
-    Remove-Item -Recurse -Force -Path $env:USERPROFILE\$($exportVM)
+    Remove-Item -Recurse -Force -Path C:\ProgramData\Microsoft\Windows\Hyper-V\export\$($exportVM)
     }
