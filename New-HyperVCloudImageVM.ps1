@@ -783,10 +783,10 @@ Write-Verbose $userdata
 Write-Verbose ""
 
 # override default userdata with custom yaml file: $CustomUserDataYamlFile
-# the will be parsed for any powershell variables, src: https://deadroot.info/scripts/2018/09/04/PowerShell-Templating
+# taken verbatim - no powershell templating, so shell and systemd variables survive unescaped
 if (-not [string]::IsNullOrEmpty($CustomUserDataYamlFile) -and (Test-Path $CustomUserDataYamlFile)) {
   Write-Verbose "Using custom userdata yaml $CustomUserDataYamlFile"
-  $userdata = $ExecutionContext.InvokeCommand.ExpandString( $(Get-Content $CustomUserDataYamlFile -Raw) ) # parse variables
+  $userdata = Get-Content $CustomUserDataYamlFile -Raw
 }
 
 if ($ImageTypeAzure) {
