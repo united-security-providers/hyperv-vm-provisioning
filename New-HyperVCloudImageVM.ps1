@@ -289,6 +289,20 @@ Switch ($ImageVersion) {
     $ImageManifestUrl = "$($ImageUrlRoot)$($ImageFileName).vhd.manifest"
     break
   }
+  { "26.04", "resolute" -eq $_ } {
+    $ImageOS = "ubuntu"
+    $ImageVersionName = "resolute"
+    $ImageVersion = "26.04"
+    $ImageRelease = "release" # default option is get latest but could be fixed to some specific version for example "release-20210413"
+    $ImageBaseUrl = "http://cloud-images.ubuntu.com/releases" # alternative https://mirror.scaleuptech.com/ubuntu-cloud-images/releases
+    $ImageUrlRoot = "$ImageBaseUrl/$ImageVersionName/$ImageRelease/" # latest
+    $ImageFileName = "$ImageOS-$ImageVersion-server-cloudimg-amd64"
+    $ImageFileExtension = "img"
+    # Manifest file is used for version check based on last modified HTTP header
+    $ImageHashFileName = "SHA256SUMS"
+    $ImageManifestUrl = "$($ImageUrlRoot)$($ImageFileName).manifest"
+    break
+  }
   { "10", "buster" -eq $_ } {
     $ImageOS = "debian"
     $ImageVersionName = "buster"
